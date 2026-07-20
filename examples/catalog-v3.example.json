@@ -1,0 +1,101 @@
+{
+  "catalogVersion": 3,
+  "release": "2026.07-design",
+  "components": [
+    {
+      "id": "python-runtime",
+      "kind": "component",
+      "name": {"en": "Python Runtime", "zh_CN": "Python 运行时"},
+      "description": {"en": "Reviewed Python runtime", "zh_CN": "经过审查的 Python 运行时"},
+      "provider": "pacman",
+      "source": "arch",
+      "license": "PSF-2.0",
+      "availability": true
+    },
+    {
+      "id": "jupyterlab",
+      "kind": "component",
+      "name": {"en": "JupyterLab", "zh_CN": "JupyterLab"},
+      "description": {"en": "Interactive notebook environment", "zh_CN": "交互式笔记本环境"},
+      "provider": "pacman",
+      "source": "arch",
+      "license": "BSD-3-Clause",
+      "availability": true
+    },
+    {
+      "id": "numpy-scipy",
+      "kind": "component",
+      "name": {"en": "NumPy / SciPy", "zh_CN": "NumPy / SciPy"},
+      "description": {"en": "Core numerical Python stack", "zh_CN": "Python 核心数值计算栈"},
+      "provider": "pacman",
+      "source": "arch",
+      "license": "BSD-3-Clause",
+      "availability": true
+    },
+    {
+      "id": "pyarrow",
+      "kind": "component",
+      "name": {"en": "Apache Arrow for Python", "zh_CN": "Python Apache Arrow"},
+      "description": {"en": "Columnar data interoperability", "zh_CN": "列式数据互操作组件"},
+      "provider": "pacman",
+      "source": "arch",
+      "license": "Apache-2.0",
+      "availability": true
+    },
+    {
+      "id": "cpu-ml-runtime",
+      "kind": "component",
+      "name": {"en": "CPU ML Runtime", "zh_CN": "CPU 机器学习运行时"},
+      "description": {"en": "CPU-only machine learning runtime", "zh_CN": "仅使用 CPU 的机器学习运行时"},
+      "provider": "pacman",
+      "source": "arch",
+      "license": "mixed-reviewed",
+      "availability": true
+    },
+    {
+      "id": "gpu-ml-runtime",
+      "kind": "component",
+      "name": {"en": "GPU ML Runtime", "zh_CN": "GPU 机器学习运行时"},
+      "description": {"en": "Hardware-gated GPU runtime", "zh_CN": "需要硬件匹配的 GPU 运行时"},
+      "provider": "hardware-handoff",
+      "source": "hardware-policy",
+      "license": "hardware-dependent",
+      "availability": {"available": false, "reason": "No accepted hardware policy result is available"}
+    }
+  ],
+  "bundles": [
+    {
+      "id": "python-scientific-stack",
+      "name": {"en": "Python Scientific Stack", "zh_CN": "Python 科学计算栈"},
+      "description": {"en": "Python runtime and reviewed scientific tools", "zh_CN": "Python 运行时和经过审查的科学工具"},
+      "selection": "preset",
+      "children": {
+        "required": ["python-runtime"],
+        "recommended": ["numpy-scipy"],
+        "optional": ["pyarrow"]
+      }
+    },
+    {
+      "id": "ml-runtime-choice",
+      "name": {"en": "Machine Learning Runtime", "zh_CN": "机器学习运行时"},
+      "description": {"en": "Choose at most one runtime provider", "zh_CN": "最多选择一种运行时提供方"},
+      "selection": "exclusive",
+      "children": {
+        "required": [],
+        "recommended": [],
+        "optional": ["cpu-ml-runtime", "gpu-ml-runtime"]
+      }
+    },
+    {
+      "id": "data-science",
+      "name": {"en": "Data Science", "zh_CN": "数据科学"},
+      "description": {"en": "Expandable data science workspace", "zh_CN": "可展开的数据科学工作空间"},
+      "selection": "preset",
+      "children": {
+        "required": ["python-scientific-stack"],
+        "recommended": ["jupyterlab"],
+        "optional": ["ml-runtime-choice"]
+      }
+    }
+  ]
+}

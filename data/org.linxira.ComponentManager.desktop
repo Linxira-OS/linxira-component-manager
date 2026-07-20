@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Linxira Component Manager
+Name[zh_CN]=Linxira 合集包与组件包管理器
+Comment=Select capability bundles, runtimes, and development components
+Comment[zh_CN]=选择能力合集、运行时和开发组件
+Exec=/usr/bin/linxira-component-manager
+Icon=preferences-system-software
+Terminal=false
+Categories=System;Settings;PackageManager;
+Keywords=components;bundles;features;software;
+StartupNotify=true
