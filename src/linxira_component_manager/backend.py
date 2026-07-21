@@ -151,8 +151,6 @@ def confirm_and_apply(
             resolved_pkexec,
             transaction.executable,
             "apply",
-            "--catalog",
-            str(transaction.catalog_path),
             "--confirmation",
             str(confirmation_path),
         ])

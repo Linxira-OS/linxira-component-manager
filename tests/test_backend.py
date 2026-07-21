@@ -90,8 +90,7 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(calls[2][:3], [
             "/usr/bin/pkexec", "/usr/bin/linxira-components", "apply",
         ])
-        self.assertEqual(calls[2][3:5], ["--catalog", str(self.catalog)])
-        self.assertEqual(calls[2][5], "--confirmation")
+        self.assertEqual(calls[2][3:], ["--confirmation", str(directory / "confirmation.json")])
         self.assertTrue(all(call.kwargs["shell"] is False for call in run.call_args_list))
         self.assertFalse(directory.exists())
 
