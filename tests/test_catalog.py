@@ -82,6 +82,30 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.bundles["application-tools"].surface, "applications")
         self.assertIn("qgis", catalog.leaf_ids("data-science"))
 
+    def test_accepts_desktop_surface_without_exposing_it_as_a_root(self) -> None:
+        document = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+        document["desktops"] = [{
+            "id": "desktop-plasma",
+            "kind": "desktop",
+            "name": "Plasma",
+            "provider": "pacman",
+            "source": "arch",
+        }]
+        document["bundles"].append({
+            "id": "desktop-environments",
+            "surface": "desktops",
+            "name": "Desktop environments",
+            "selection": "exclusive",
+            "children": {"required": ["desktop-plasma"], "recommended": [], "optional": []},
+        })
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalog.json"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            catalog = load_catalog(path)
+
+        self.assertEqual(catalog.leaves["desktop-plasma"].kind, "desktop")
+        self.assertNotIn("desktop-environments", catalog.top_level_bundle_ids)
+
     @unittest.skipUnless(CANONICAL.is_file(), "installed canonical Catalog v3 is unavailable")
     def test_canonical_catalog_does_not_expose_application_roots(self) -> None:
         catalog = load_catalog(CANONICAL)
@@ -100,6 +124,15 @@ class CatalogTests(unittest.TestCase):
             path = Path(directory) / "catalog.json"
             path.write_text(json.dumps(document), encoding="utf-8")
             with self.assertRaisesRegex(CatalogError, r"invalid bundles\[0\]\.surface"):
+                load_catalog(path)
+
+    def test_rejects_kind_that_does_not_match_leaf_collection(self) -> None:
+        document = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+        document["components"][0]["kind"] = "application"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalog.json"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(CatalogError, r"invalid components\[0\]\.kind"):
                 load_catalog(path)
 
     def test_rejects_cycle(self) -> None:

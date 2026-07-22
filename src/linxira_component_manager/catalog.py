@@ -11,8 +11,8 @@ from typing import Any
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 POLICIES = {"multi", "exclusive", "bounded", "preset"}
 ROLES = ("required", "recommended", "optional")
-LEAF_KINDS = {"component", "application", "operation"}
-BUNDLE_SURFACES = {"applications", "components"}
+LEAF_KINDS = {"component", "application", "desktop", "operation"}
+BUNDLE_SURFACES = {"applications", "components", "desktops"}
 
 
 class CatalogError(ValueError):
@@ -150,17 +150,19 @@ def load_catalog(path: str | Path) -> Catalog:
 
     raw_components = document.get("components", [])
     raw_applications = document.get("applications", [])
+    raw_desktops = document.get("desktops", [])
     raw_operations = document.get("operations", [])
     raw_bundles = document.get("bundles", [])
     if not all(isinstance(collection, list) for collection in (
-        raw_components, raw_applications, raw_operations, raw_bundles
+        raw_components, raw_applications, raw_desktops, raw_operations, raw_bundles
     )):
-        raise CatalogError("components, applications, operations, and bundles must be arrays")
+        raise CatalogError("components, applications, desktops, operations, and bundles must be arrays")
 
     leaves: dict[str, Leaf] = {}
     collections = (
         ("components", raw_components, "component"),
         ("applications", raw_applications, "application"),
+        ("desktops", raw_desktops, "desktop"),
         ("operations", raw_operations, "operation"),
     )
     for collection_name, collection, default_kind in collections:
@@ -170,7 +172,7 @@ def load_catalog(path: str | Path) -> Catalog:
                 raise CatalogError(f"{context} must be an object")
             leaf_id = _identifier(item.get("id"), f"{context}.id")
             kind = item.get("kind", default_kind)
-            if kind not in LEAF_KINDS:
+            if kind != default_kind:
                 raise CatalogError(f"invalid {context}.kind")
             if leaf_id in leaves:
                 raise CatalogError(f"duplicate stable ID: {leaf_id}")
