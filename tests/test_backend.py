@@ -9,6 +9,7 @@ import unittest
 
 from linxira_component_manager.backend import (
     BackendError,
+    _run,
     confirm_and_apply,
     discard_transaction,
     plan_selection,
@@ -140,6 +141,17 @@ class BackendTests(unittest.TestCase):
         with self.assertRaisesRegex(BackendError, "catalog drift"):
             confirm_and_apply(transaction)
         self.assertFalse(directory.exists())
+
+    @mock.patch("linxira_component_manager.backend.subprocess.run")
+    def test_json_error_message_is_unwrapped(self, run) -> None:
+        run.return_value = subprocess.CompletedProcess(
+            [],
+            3,
+            "",
+            '{"error":"TRANSACTION_FAILED","message":"pacman transaction failed\\nstderr:\\nmirror unavailable"}',
+        )
+        with self.assertRaisesRegex(BackendError, "mirror unavailable"):
+            _run(["linxira-components", "apply"])
 
     @mock.patch("linxira_component_manager.backend.subprocess.run")
     @mock.patch(

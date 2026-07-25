@@ -43,6 +43,13 @@ class UiTests(unittest.TestCase):
             window.selection.set_bundle("data-science", True)
             window._refresh()
 
+            self.assertTrue(window.tree.topLevelItem(0).isExpanded())
+            self.assertFalse(
+                any(
+                    window.tree.topLevelItem(index).isExpanded()
+                    for index in range(1, window.tree.topLevelItemCount())
+                )
+            )
             self.assertEqual(qgis_item.text(2), "application")
             self.assertFalse(qgis_item.isDisabled())
             self.assertIn("Kind: application", window.details.toPlainText())

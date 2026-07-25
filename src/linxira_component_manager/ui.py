@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self.selection: SelectionModel | None = None
         self.plan_worker: PlanThread | None = None
         self.apply_worker: ApplyThread | None = None
-        self.setWindowTitle("Linxira Component Manager")
+        self.setWindowTitle("快速配置系统运行时")
         self.resize(1180, 760)
         self._build_ui()
         if catalog_path is not None:
@@ -206,7 +206,9 @@ class MainWindow(QMainWindow):
         for bundle_id in catalog.top_level_bundle_ids:
             self._add_bundle(None, bundle_id, (bundle_id,), "")
         self.tree.blockSignals(False)
-        self.tree.expandToDepth(0)
+        self.tree.collapseAll()
+        if self.tree.topLevelItemCount():
+            self.tree.topLevelItem(0).setExpanded(True)
         self.statusBar().showMessage(f"Loaded {path}")
         self._refresh()
 

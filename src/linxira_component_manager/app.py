@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _arguments(argv)
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
     application = QApplication(sys.argv[:1])
-    application.setApplicationName("Linxira Component Manager")
+    application.setApplicationName("Quick System Runtime Setup")
     application.setOrganizationName("Linxira OS")
     catalog = args.catalog or next((path for path in DEFAULT_CATALOGS if path.is_file()), None)
     window = MainWindow(catalog)

@@ -41,6 +41,13 @@ def _run(command: list[str], *, timeout: int | None = None) -> str:
         raise BackendError(f"cannot run {command[0]}: {exc}") from exc
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}"
+        try:
+            document = json.loads(detail)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if isinstance(document, dict) and isinstance(document.get("message"), str):
+                detail = document["message"]
         raise BackendError(detail)
     return (result.stdout or result.stderr).strip()
 

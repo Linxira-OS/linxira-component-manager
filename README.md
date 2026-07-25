@@ -1,4 +1,4 @@
-# Linxira Component Manager
+# Quick System Runtime Setup
 
 Independent PySide6 UI for selecting Linxira capability bundles, runtimes,
 toolchains, and domain workspaces. It implements the Windows Features-style
