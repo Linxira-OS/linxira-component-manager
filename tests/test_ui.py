@@ -94,7 +94,7 @@ class UiTests(unittest.TestCase):
         self.assertEqual(partial.checkState(0), Qt.CheckState.PartiallyChecked)
         self.assertTrue(runtime.isDisabled())
         self.assertEqual(runtime.checkState(0), Qt.CheckState.Checked)
-        self.assertNotIn("python-runtime", window.selection.selected_leaf_ids)
+        self.assertIn("python-runtime", window.selection.selected_leaf_ids)
         with mock.patch.object(window, "open_catalog") as reload_catalog, \
              mock.patch("linxira_component_manager.ui.QMessageBox.information"):
             window._apply_succeeded(ApplyResult("ok", True))
