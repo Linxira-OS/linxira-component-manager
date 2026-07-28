@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.linxira.ComponentManager</id>
+  <name>Quick System Runtime Setup</name>
+  <summary>Configure capability bundles, runtimes, and system components</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <launchable type="desktop-id">org.linxira.ComponentManager.desktop</launchable>
+  <provides><binary>linxira-component-manager</binary></provides>
+  <description>
+    <p>Quick System Runtime Setup selects catalog-defined bundles and components and delegates immutable plans to the Linxira Components backend.</p>
+  </description>
+  <developer id="org.linxira"><name>Linxira OS contributors</name></developer>
+  <url type="homepage">https://linxira-os.github.io/</url>
+  <url type="vcs-browser">https://github.com/Linxira-OS/linxira-component-manager</url>
+  <url type="bugtracker">https://github.com/Linxira-OS/linxira-component-manager/issues</url>
+  <url type="help">https://linxira-os.github.io/linxira-wiki/</url>
+  <releases><release version="0.1.0" date="2026-07-26" /></releases>
+  <content_rating type="oars-1.1" />
+</component>

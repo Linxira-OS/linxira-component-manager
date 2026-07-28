@@ -24,11 +24,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .about import show_about
 from .backend import (
     ApplyResult,
     Transaction,
     confirm_and_apply,
     discard_transaction,
+    load_inventory,
     plan_selection,
 )
 from .catalog import Bundle, Catalog, CatalogError, Leaf, load_catalog
@@ -126,6 +128,7 @@ class MainWindow(QMainWindow):
         self.selection: SelectionModel | None = None
         self.plan_worker: PlanThread | None = None
         self.apply_worker: ApplyThread | None = None
+        self.installed_states: dict[str, str] = {}
         self.setWindowTitle("快速配置系统运行时")
         self.resize(1180, 760)
         self._build_ui()
@@ -140,6 +143,9 @@ class MainWindow(QMainWindow):
         save_action.setShortcut("Ctrl+S")
         save_action.triggered.connect(self.save_selection)
         self.menuBar().addMenu("File").addActions([open_action, save_action])
+        about_action = QAction("About Quick System Runtime Setup", self)
+        about_action.triggered.connect(lambda: show_about(self))
+        self.menuBar().addMenu("Help").addAction(about_action)
 
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(["Bundle / component", "Role", "Policy"])
@@ -201,10 +207,25 @@ class MainWindow(QMainWindow):
             return
         self.catalog = catalog
         self.selection = SelectionModel(catalog)
+        try:
+            self.installed_states = load_inventory(path)
+        except Exception as exc:
+            self.installed_states = {}
+            self.statusBar().showMessage(f"Installed state unavailable: {exc}", 8000)
         self.tree.blockSignals(True)
         self.tree.clear()
         for bundle_id in catalog.top_level_bundle_ids:
             self._add_bundle(None, bundle_id, (bundle_id,), "")
+        partial_paths: dict[str, tuple[str, ...]] = {}
+        for item in self._iter_items():
+            leaf_id = item.data(0, NODE_ID)
+            if (
+                item.data(0, NODE_KIND) == "leaf"
+                and self.installed_states.get(leaf_id) == "partial"
+                and leaf_id not in partial_paths
+            ):
+                partial_paths[leaf_id] = tuple(item.data(0, NODE_PATH))
+        self.selection.load_reconciled_paths(partial_paths.values())
         self.tree.blockSignals(False)
         self.tree.collapseAll()
         if self.tree.topLevelItemCount():
@@ -285,20 +306,41 @@ class MainWindow(QMainWindow):
         if self.selection is None or self.catalog is None:
             return
         selected = self.selection.selected_leaf_ids
+        installed = {
+            leaf_id for leaf_id, state in self.installed_states.items()
+            if state == "installed"
+        }
+        effective = set(selected) | installed
         self.tree.blockSignals(True)
         for item in self._iter_items():
             node_id = item.data(0, NODE_ID)
             kind = item.data(0, NODE_KIND)
             if kind == "bundle":
+                leaves = {
+                    leaf_id for leaf_id in self.catalog.leaf_ids(node_id)
+                    if self.catalog.leaves[leaf_id].available
+                }
+                count = len(leaves & effective)
+                state = 0 if not count else 2 if count == len(leaves) else 1
                 states = (Qt.CheckState.Unchecked, Qt.CheckState.PartiallyChecked, Qt.CheckState.Checked)
-                item.setCheckState(0, states[self.selection.node_state(node_id)])
+                item.setCheckState(0, states[state])
             else:
-                item.setCheckState(0, Qt.CheckState.Checked if node_id in selected else Qt.CheckState.Unchecked)
+                installed_state = self.installed_states.get(node_id)
+                if installed_state == "installed":
+                    item.setCheckState(0, Qt.CheckState.Checked)
+                elif installed_state == "partial":
+                    item.setCheckState(0, Qt.CheckState.PartiallyChecked)
+                else:
+                    item.setCheckState(0, Qt.CheckState.Checked if node_id in selected else Qt.CheckState.Unchecked)
                 leaf = self.catalog.leaves[node_id]
                 required = self.selection.is_required(node_id)
-                item.setDisabled(not leaf.available or required)
+                item.setDisabled(not leaf.available or required or installed_state == "installed")
                 if required:
                     item.setToolTip(0, f"{leaf.description}\nRequired by an active bundle; cannot be cleared.")
+                elif installed_state == "installed":
+                    item.setToolTip(0, f"{leaf.description}\nInstalled package cohort; removal is not supported.")
+                elif installed_state == "partial":
+                    item.setToolTip(0, f"{leaf.description}\nPartially installed; apply will install the missing package targets.")
         self.tree.blockSignals(False)
         document = self.selection.document()
         self.preview.setPlainText(json.dumps(document, ensure_ascii=False, indent=2, sort_keys=True))
@@ -392,6 +434,8 @@ class MainWindow(QMainWindow):
             self.statusBar().clearMessage()
 
     def _apply_succeeded(self, result: ApplyResult) -> None:
+        if self.catalog is not None:
+            self.open_catalog(self.catalog.path)
         if result.applied:
             message = result.output or "The selected package targets were applied successfully."
             QMessageBox.information(self, "Components applied", message)

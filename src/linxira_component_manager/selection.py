@@ -24,6 +24,20 @@ class SelectionModel:
         self.user_overrides: dict[str, bool] = {}
         self.explicit_paths: dict[str, set[tuple[str, ...]]] = {}
 
+    def load_reconciled_paths(self, paths: Iterable[tuple[str, ...]]) -> None:
+        reconciled = tuple(path for path in paths if path and path[-1] in self.catalog.leaves)
+        selected_ids = {path[-1] for path in reconciled}
+        roots = {path[0] for path in reconciled if path[0] in self.catalog.bundles}
+        self.selected_bundles.update(roots)
+        for root in roots:
+            for leaf_id in self.catalog.leaf_ids(root) - selected_ids:
+                self.user_overrides[leaf_id] = False
+        for path in reconciled:
+            if path and path[-1] in self.catalog.leaves:
+                leaf_id = path[-1]
+                self.user_overrides[leaf_id] = True
+                self.explicit_paths.setdefault(leaf_id, set()).add(path)
+
     def _walk_bundle(
         self,
         bundle_id: str,
@@ -148,6 +162,8 @@ class SelectionModel:
         snapshot = self._snapshot()
         self.user_overrides[leaf_id] = selected
         if selected:
+            if path[0] in self.catalog.bundles:
+                self.selected_bundles.add(path[0])
             self.explicit_paths.setdefault(leaf_id, set()).add(path)
             for index, bundle in self._ancestor_bundles(path):
                 if bundle.policy != "exclusive":

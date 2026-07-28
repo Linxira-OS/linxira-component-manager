@@ -12,6 +12,7 @@ from linxira_component_manager.backend import (
     _run,
     confirm_and_apply,
     discard_transaction,
+    load_inventory,
     plan_selection,
 )
 
@@ -63,6 +64,20 @@ class BackendTests(unittest.TestCase):
         self.assertFalse(run.call_args.kwargs["shell"])
         self.assertTrue((transaction.directory / "selection.json").is_file())
         self.assertEqual(transaction.plan["directPackageTargets"], ["python"])
+
+    @mock.patch("linxira_component_manager.backend.subprocess.run")
+    @mock.patch("linxira_component_manager.backend.shutil.which", return_value="/usr/bin/linxira-components")
+    def test_inventory_loads_installed_and_partial_leaf_states(self, _which, run) -> None:
+        run.return_value = subprocess.CompletedProcess([], 0, json.dumps({
+            "schemaVersion": "org.linxira.components.installed-state.v1",
+            "leaves": {
+                "python-runtime": {"state": "installed"},
+                "science-stack": {"state": "partial"},
+            },
+        }), "")
+        states = load_inventory(self.catalog)
+        self.assertEqual(states, {"python-runtime": "installed", "science-stack": "partial"})
+        self.assertEqual(run.call_args.args[0][1], "inventory")
 
     @mock.patch("linxira_component_manager.backend.subprocess.run")
     @mock.patch("linxira_component_manager.backend.shutil.which")
@@ -119,6 +134,32 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(run.call_count, 2)
         self.assertNotIn("pkexec", " ".join(run.call_args.args[0]))
         self.assertEqual(which.call_args_list, [mock.call("linxira-components")])
+
+    @mock.patch("linxira_component_manager.backend.subprocess.run")
+    @mock.patch("linxira_component_manager.backend.shutil.which")
+    def test_installed_ready_plan_uses_privileged_apply_for_drift_recheck(self, which, run) -> None:
+        which.side_effect = lambda value: f"/usr/bin/{value}"
+
+        def fake_run(command, **kwargs):
+            output_dir = Path(command[command.index("--output-dir") + 1]) if "--output-dir" in command else None
+            if command[1] == "plan":
+                plan = request_plan(targets=[])
+                plan["pendingItems"] = []
+                plan["leafRequirements"] = [{
+                    "id": "python-runtime", "status": "ready", "packageTargets": [],
+                }]
+                (output_dir / "request-plan.json").write_text(json.dumps(plan), encoding="utf-8")
+            elif command[1] == "confirm":
+                (output_dir / "confirmation.json").write_text("{}", encoding="utf-8")
+            return subprocess.CompletedProcess(command, 0, "verified", "")
+
+        run.side_effect = fake_run
+        result = confirm_and_apply(plan_selection(self.selection, self.catalog))
+        self.assertTrue(result.applied)
+        self.assertEqual(run.call_count, 3)
+        self.assertEqual(run.call_args.args[0][:3], [
+            "/usr/bin/pkexec", "/usr/bin/linxira-components", "apply",
+        ])
 
     @mock.patch("linxira_component_manager.backend.subprocess.run")
     @mock.patch(

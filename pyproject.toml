@@ -12,6 +12,12 @@ license = {file = "LICENSE"}
 authors = [{name = "Linxira OS contributors"}]
 dependencies = ["PySide6>=6.7"]
 
+[project.urls]
+Homepage = "https://linxira-os.github.io/"
+Repository = "https://github.com/Linxira-OS/linxira-component-manager"
+Issues = "https://github.com/Linxira-OS/linxira-component-manager/issues"
+Documentation = "https://linxira-os.github.io/linxira-wiki/"
+
 [project.scripts]
 linxira-component-manager = "linxira_component_manager.app:main"
 

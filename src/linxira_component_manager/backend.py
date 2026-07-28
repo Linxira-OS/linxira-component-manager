@@ -79,6 +79,39 @@ def _validate_plan(plan: dict[str, Any]) -> None:
         raise BackendError("backend plan contains invalid leafRequirements")
 
 
+def load_inventory(
+    catalog_path: Path,
+    *,
+    executable: str = "linxira-components",
+    timeout: int = 30,
+) -> dict[str, str]:
+    resolved = shutil.which(executable)
+    if resolved is None:
+        return {}
+    output = _run([
+        resolved, "inventory", "--catalog", str(catalog_path),
+    ], timeout=timeout)
+    try:
+        document = json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise BackendError("backend produced an invalid installed-state inventory") from exc
+    leaves = document.get("leaves") if isinstance(document, dict) else None
+    if (
+        not isinstance(document, dict)
+        or document.get("schemaVersion") != "org.linxira.components.installed-state.v1"
+        or not isinstance(leaves, dict)
+    ):
+        raise BackendError("backend produced an invalid installed-state inventory")
+    states: dict[str, str] = {}
+    for leaf_id, value in leaves.items():
+        state = value.get("state") if isinstance(value, dict) else None
+        if isinstance(leaf_id, str) and state in {"installed", "partial", "absent", "unknown"}:
+            states[leaf_id] = state
+        else:
+            raise BackendError("backend inventory contains an invalid leaf state")
+    return states
+
+
 def plan_selection(
     selection: dict[str, Any],
     catalog_path: Path,
@@ -141,15 +174,16 @@ def confirm_and_apply(
         targets = transaction.plan["directPackageTargets"]
         requirements = transaction.plan["leafRequirements"]
         if not targets:
-            statuses = {item["status"] for item in requirements}
-            if not requirements or not statuses.issubset({"pending", "unsupported"}):
+            ready_requirements = [item for item in requirements if item["status"] == "ready"]
+            if any(item.get("packageTargets") for item in ready_requirements):
                 raise BackendError(
-                    "plan has no directPackageTargets but is not limited to pending/unsupported items"
+                    "plan has no directPackageTargets but contains an unreconciled ready item"
                 )
-            return ApplyResult(
-                "Plan confirmed. Pending and unsupported items were not applied; administrator authorization was not requested.",
-                False,
-            )
+            if not ready_requirements:
+                return ApplyResult(
+                    "Plan confirmed. No executable package leaves require administrator authorization, so authorization was not requested; pending and unsupported items were not applied.",
+                    False,
+                )
 
         resolved_pkexec = shutil.which(pkexec)
         if resolved_pkexec is None:

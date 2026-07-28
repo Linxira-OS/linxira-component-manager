@@ -72,11 +72,26 @@ class SelectionTests(unittest.TestCase):
             selection.set_leaf("qgis", True, direct)
             result = selection.document()
 
-        self.assertEqual(result["selectedLeafIds"], ["qgis"])
-        leaf = result["leaves"][0]
+        self.assertEqual(
+            result["selectedLeafIds"],
+            ["jupyterlab", "numpy-scipy", "python-runtime", "qgis"],
+        )
+        leaf = next(item for item in result["leaves"] if item["id"] == "qgis")
         self.assertEqual(
             leaf["requestedBy"],
             ["data-science/python-scientific-stack/qgis", "data-science/qgis"],
+        )
+        self.assertEqual(
+            result["selectedBundleIds"],
+            ["data-science", "python-scientific-stack"],
+        )
+
+    def test_leaf_selection_activates_its_root_bundle(self) -> None:
+        path = ("data-science", "python-scientific-stack", "pyarrow")
+        self.selection.set_leaf("pyarrow", True, path)
+        self.assertEqual(
+            self.selection.document()["selectedBundleIds"],
+            ["data-science", "python-scientific-stack"],
         )
 
     def test_exclusive_selection_clears_sibling(self) -> None:
@@ -104,7 +119,10 @@ class SelectionTests(unittest.TestCase):
         gpu_path = ("data-science", "ml-runtime-choice", "gpu-ml-runtime")
         with self.assertRaisesRegex(SelectionError, "at most 1"):
             self.selection.set_leaf("gpu-ml-runtime", True, gpu_path)
-        self.assertEqual(self.selection.selected_leaf_ids, frozenset({"cpu-ml-runtime"}))
+        self.assertEqual(
+            self.selection.selected_leaf_ids,
+            frozenset({"cpu-ml-runtime", "python-runtime", "numpy-scipy", "jupyterlab"}),
+        )
 
 
 if __name__ == "__main__":

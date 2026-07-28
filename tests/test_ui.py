@@ -5,11 +5,14 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QDialogButtonBox
 
+from linxira_component_manager.backend import ApplyResult
 from linxira_component_manager.ui import MainWindow, NODE_ID, PlanDialog
 
 
@@ -77,6 +80,26 @@ class UiTests(unittest.TestCase):
             "Confirm and apply",
         )
         dialog.close()
+
+    def test_inventory_preloads_partial_selection_and_success_reloads_it(self) -> None:
+        with mock.patch(
+            "linxira_component_manager.ui.load_inventory",
+            return_value={"python-runtime": "installed", "pyarrow": "partial"},
+        ):
+            window = MainWindow(EXAMPLE)
+        partial = next(item for item in window._iter_items() if item.data(0, NODE_ID) == "pyarrow")
+        runtime = next(item for item in window._iter_items() if item.data(0, NODE_ID) == "python-runtime")
+        self.assertIn("pyarrow", window.selection.selected_leaf_ids)
+        self.assertIn("data-science", window.selection.document()["selectedBundleIds"])
+        self.assertEqual(partial.checkState(0), Qt.CheckState.PartiallyChecked)
+        self.assertTrue(runtime.isDisabled())
+        self.assertEqual(runtime.checkState(0), Qt.CheckState.Checked)
+        self.assertNotIn("python-runtime", window.selection.selected_leaf_ids)
+        with mock.patch.object(window, "open_catalog") as reload_catalog, \
+             mock.patch("linxira_component_manager.ui.QMessageBox.information"):
+            window._apply_succeeded(ApplyResult("ok", True))
+        reload_catalog.assert_called_once_with(EXAMPLE)
+        window.close()
 
 
 if __name__ == "__main__":
