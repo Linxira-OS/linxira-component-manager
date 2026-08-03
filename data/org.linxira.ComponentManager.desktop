@@ -7,6 +7,6 @@ Comment[zh_CN]=配置能力合集、运行时和开发组件
 Exec=/usr/bin/linxira-component-manager
 Icon=preferences-system-software
 Terminal=false
-Categories=System;Settings;PackageManager;
+Categories=System;PackageManager;
 Keywords=components;bundles;features;runtimes;software;
 StartupNotify=true
