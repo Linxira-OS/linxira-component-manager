@@ -183,7 +183,9 @@ def load_catalog(path: str | Path) -> Catalog:
                 if isinstance(availability.get("available"), bool):
                     available = availability["available"]
                 elif availability.get("status") in {"available", "review-channel", "unavailable"}:
-                    available = availability["status"] != "unavailable"
+                    # review-channel items (source/legal review pending) must
+                    # not be selectable; only plain "available" is installable.
+                    available = availability["status"] == "available"
                 else:
                     raise CatalogError(f"invalid {context}.availability")
                 reason = str(availability.get("reason", ""))

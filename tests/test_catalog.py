@@ -47,6 +47,31 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.leaves["qgis"].license, "GPL-2.0-or-later")
         self.assertIn("qgis", catalog.leaf_ids("data-science"))
 
+    def test_review_channel_leaf_is_not_selectable(self) -> None:
+        document = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+        document["applications"] = [{
+            "id": "wps-office",
+            "kind": "application",
+            "name": "WPS Office",
+            "description": "Pending legal review",
+            "provider": "pacman",
+            "source": "arch",
+            "license": {"spdx": "LicenseRef-WPS"},
+            "availability": {
+                "status": "review-channel",
+                "reason": "legal review pending",
+            },
+        }]
+        document["bundles"][0]["children"]["optional"].append("wps-office")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalog.json"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            catalog = load_catalog(path)
+
+        leaf = catalog.leaves["wps-office"]
+        self.assertFalse(leaf.available)
+        self.assertEqual(leaf.unavailable_reason, "legal review pending")
+
     def test_only_component_surface_roots_are_exposed_without_filtering_nested_bundles(self) -> None:
         document = json.loads(EXAMPLE.read_text(encoding="utf-8"))
         document["applications"] = [{
