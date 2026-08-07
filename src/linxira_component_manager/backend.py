@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-from typing import Any
+from typing import Any, Callable
 
 
 class BackendError(RuntimeError):
@@ -156,8 +156,11 @@ def confirm_and_apply(
     *,
     pkexec: str = "pkexec",
     confirm_timeout: int = 30,
+    progress: Callable[[str], None] | None = None,
 ) -> ApplyResult:
     try:
+        if progress is not None:
+            progress("正在确认组件计划…")
         _run([
             transaction.executable,
             "confirm",
@@ -188,6 +191,8 @@ def confirm_and_apply(
         resolved_pkexec = shutil.which(pkexec)
         if resolved_pkexec is None:
             raise BackendError(f"authorization executable not found: {pkexec}")
+        if progress is not None:
+            progress("正在请求管理员授权并安装…")
         output = _run([
             resolved_pkexec,
             transaction.executable,

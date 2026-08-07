@@ -55,6 +55,15 @@ class Leaf:
     license: str
     available: bool
     unavailable_reason: str
+    offline_policy: str
+
+    @property
+    def offline_label(self) -> str:
+        return {
+            "included": "镜像自带",
+            "online-only": "需联网",
+            "defer-with-consent": "可选延后",
+        }.get(self.offline_policy, "")
 
 
 @dataclass(frozen=True)
@@ -191,6 +200,7 @@ def load_catalog(path: str | Path) -> Catalog:
                 reason = str(availability.get("reason", ""))
             else:
                 raise CatalogError(f"invalid {context}.availability")
+            offline_policy = str(availability.get("offlinePolicy", "")) if isinstance(availability, dict) else ""
             license_value = item.get("license", "unspecified")
             if isinstance(license_value, dict):
                 license_value = license_value.get("spdx", "unspecified")
@@ -204,6 +214,7 @@ def load_catalog(path: str | Path) -> Catalog:
                 license=str(license_value),
                 available=available,
                 unavailable_reason=reason,
+                offline_policy=offline_policy,
             )
 
     bundles: dict[str, Bundle] = {}

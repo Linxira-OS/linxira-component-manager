@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QSplitter,
     QStatusBar,
@@ -61,6 +62,7 @@ class PlanThread(QThread):
 class ApplyThread(QThread):
     succeeded = Signal(object)
     failed = Signal(str)
+    progress = Signal(str)
 
     def __init__(self, transaction: Transaction) -> None:
         super().__init__()
@@ -68,7 +70,9 @@ class ApplyThread(QThread):
 
     def run(self) -> None:
         try:
-            self.succeeded.emit(confirm_and_apply(self.transaction))
+            self.succeeded.emit(
+                confirm_and_apply(self.transaction, progress=self.progress.emit)
+            )
         except Exception as exc:
             self.failed.emit(str(exc))
 
@@ -193,6 +197,11 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
         self.setStatusBar(QStatusBar())
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setFixedWidth(260)
+        self.progress_bar.setVisible(False)
+        self.statusBar().addPermanentWidget(self.progress_bar)
 
     def choose_catalog(self) -> None:
         filename, _ = QFileDialog.getOpenFileName(self, "Open Catalog v3", "", "JSON files (*.json)")
@@ -263,7 +272,10 @@ class MainWindow(QMainWindow):
         path: tuple[str, ...],
         role: str,
     ) -> None:
-        item = QTreeWidgetItem(parent, [leaf.name, role, leaf.kind])
+        label = leaf.name
+        if leaf.offline_label:
+            label += f" · {leaf.offline_label}"
+        item = QTreeWidgetItem(parent, [label, role, leaf.kind])
         item.setData(0, NODE_ID, leaf.id)
         item.setData(0, NODE_PATH, list(path))
         item.setData(0, NODE_KIND, "leaf")
@@ -360,7 +372,8 @@ class MainWindow(QMainWindow):
             node = self.catalog.leaves[node_id]
             text = (
                 f"{node.name}\n\n{node.description}\n\nStable ID: {node.id}\nKind: {node.kind}\n"
-                f"Provider: {node.provider}\nSource: {node.source}\nLicense: {node.license}\nPath: {path}"
+                f"Provider: {node.provider}\nSource: {node.source}\nLicense: {node.license}\n"
+                f"Offline policy: {node.offline_label or node.offline_policy or '-'}\nPath: {path}"
             )
         else:
             node = self.catalog.bundles[node_id]
@@ -415,11 +428,16 @@ class MainWindow(QMainWindow):
             return
         self.plan_button.setEnabled(False)
         self.statusBar().showMessage("Confirming and applying the transaction...")
+        self.progress_bar.setVisible(True)
         self.apply_worker = ApplyThread(transaction)
         self.apply_worker.succeeded.connect(self._apply_succeeded)
         self.apply_worker.failed.connect(self._apply_failed)
         self.apply_worker.finished.connect(self._apply_finished)
+        self.apply_worker.progress.connect(self._apply_progress)
         self.apply_worker.start()
+
+    def _apply_progress(self, stage: str) -> None:
+        self.statusBar().showMessage(stage)
 
     def _plan_failed(self, message: str) -> None:
         self.plan_preview.setPlainText(f"FAIL-CLOSED\n\n{message}")
@@ -449,5 +467,6 @@ class MainWindow(QMainWindow):
         if self.apply_worker is not None:
             self.apply_worker.deleteLater()
         self.apply_worker = None
+        self.progress_bar.setVisible(False)
         self.plan_button.setEnabled(True)
         self.statusBar().clearMessage()

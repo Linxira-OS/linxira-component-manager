@@ -35,7 +35,7 @@ class CatalogTests(unittest.TestCase):
             "provider": "pacman",
             "source": "arch",
             "license": {"spdx": "GPL-2.0-or-later"},
-            "availability": {"status": "available"},
+            "availability": {"status": "available", "offlinePolicy": "included"},
         }]
         document["bundles"][0]["children"]["optional"].append("qgis")
         with tempfile.TemporaryDirectory() as directory:
@@ -45,6 +45,8 @@ class CatalogTests(unittest.TestCase):
 
         self.assertEqual(catalog.leaves["qgis"].kind, "application")
         self.assertEqual(catalog.leaves["qgis"].license, "GPL-2.0-or-later")
+        self.assertEqual(catalog.leaves["qgis"].offline_policy, "included")
+        self.assertEqual(catalog.leaves["qgis"].offline_label, "镜像自带")
         self.assertIn("qgis", catalog.leaf_ids("data-science"))
 
     def test_review_channel_leaf_is_not_selectable(self) -> None:
