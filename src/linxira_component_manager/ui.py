@@ -31,6 +31,7 @@ from .backend import (
     Transaction,
     confirm_and_apply,
     discard_transaction,
+    load_installer_deferred,
     load_inventory,
     plan_selection,
 )
@@ -234,12 +235,42 @@ class MainWindow(QMainWindow):
                 and leaf_id not in partial_paths
             ):
                 partial_paths[leaf_id] = tuple(item.data(0, NODE_PATH))
-        self.selection.load_reconciled_paths(partial_paths.values())
+        # 2026-09-20: 安装时因离线被延后的组件在此接手 —— 预选进当前选择,
+        # 用户确认 plan 即可完成安装(此前这些组件会静默消失)。
+        deferred_ids = (
+            set(load_installer_deferred())
+            & set(self.catalog.leaves)
+            - {
+                leaf_id
+                for leaf_id, state in self.installed_states.items()
+                if state == "installed"
+            }
+        )
+        deferred_paths: dict[str, tuple[str, ...]] = {}
+        if deferred_ids:
+            for item in self._iter_items():
+                leaf_id = item.data(0, NODE_ID)
+                if (
+                    item.data(0, NODE_KIND) == "leaf"
+                    and leaf_id in deferred_ids
+                    and leaf_id not in partial_paths
+                    and leaf_id not in deferred_paths
+                ):
+                    deferred_paths[leaf_id] = tuple(item.data(0, NODE_PATH))
+        self.selection.load_reconciled_paths(
+            [*partial_paths.values(), *deferred_paths.values()]
+        )
         self.tree.blockSignals(False)
         self.tree.collapseAll()
         if self.tree.topLevelItemCount():
             self.tree.topLevelItem(0).setExpanded(True)
         self.statusBar().showMessage(f"Loaded {path}")
+        if deferred_paths:
+            self.statusBar().showMessage(
+                "Installer deferred {} component(s) at install time; they are pre-selected — "
+                "plan to finish installing them.".format(len(deferred_paths)),
+                15000,
+            )
         self._refresh()
 
     def _add_bundle(

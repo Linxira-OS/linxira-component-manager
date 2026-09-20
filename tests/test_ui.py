@@ -101,6 +101,25 @@ class UiTests(unittest.TestCase):
         reload_catalog.assert_called_once_with(EXAMPLE)
         window.close()
 
+    def test_installer_deferred_components_are_preselected(self) -> None:
+        # 2026-09-20: 安装回执里的延后组件必须在打开时预选并给出提示,
+        # 否则安装器延后的组件(如容器四件套)会静默消失。
+        with mock.patch(
+            "linxira_component_manager.ui.load_inventory",
+            return_value={},
+        ), mock.patch(
+            "linxira_component_manager.ui.load_installer_deferred",
+            return_value=("pyarrow", "component-absent"),
+        ):
+            window = MainWindow(EXAMPLE)
+        pyarrow = next(
+            item for item in window._iter_items() if item.data(0, NODE_ID) == "pyarrow"
+        )
+        self.assertIn("pyarrow", window.selection.selected_leaf_ids)
+        self.assertEqual(pyarrow.checkState(0), Qt.CheckState.Checked)
+        self.assertIn("deferred 1 component", window.statusBar().currentMessage())
+        window.close()
+
 
 if __name__ == "__main__":
     unittest.main()

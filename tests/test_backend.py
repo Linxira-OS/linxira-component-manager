@@ -12,9 +12,49 @@ from linxira_component_manager.backend import (
     _run,
     confirm_and_apply,
     discard_transaction,
+    load_installer_deferred,
     load_inventory,
     plan_selection,
 )
+
+
+class InstallerDeferredTests(unittest.TestCase):
+    @staticmethod
+    def _receipt(directory, payload):
+        path = Path(directory) / "installer-selection.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return path
+
+    def test_reads_pending_and_explicitly_deferred_ids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._receipt(directory, {
+                "schemaVersion": "org.linxira.installer.selection-receipt.v1",
+                "status": "installed",
+                "pendingItems": ["component-docker", "component-podman"],
+                "itemStatuses": [
+                    {"id": "component-docker", "status": "explicitly-deferred"},
+                    {"id": "desktop-plasma", "status": "installed"},
+                ],
+            })
+            self.assertEqual(
+                load_installer_deferred(path),
+                ("component-docker", "component-podman"),
+            )
+
+    def test_missing_or_invalid_receipt_yields_empty(self):
+        self.assertEqual(load_installer_deferred(Path("/nonexistent/receipt.json")), ())
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipt.json"
+            path.write_text("not json", encoding="utf-8")
+            self.assertEqual(load_installer_deferred(path), ())
+
+    def test_unexpected_receipt_status_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._receipt(directory, {
+                "status": "failed",
+                "pendingItems": ["component-docker"],
+            })
+            self.assertEqual(load_installer_deferred(path), ())
 
 
 def request_plan(*, targets: list[str] | None = None) -> dict[str, object]:

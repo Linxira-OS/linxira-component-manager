@@ -13,6 +13,44 @@ class BackendError(RuntimeError):
     pass
 
 
+INSTALLER_RECEIPT_PATH = Path("/var/lib/linxira/installer-selection.json")
+
+
+def load_installer_deferred(path: Path | None = None) -> tuple[str, ...]:
+    """Leaf ids the installer deferred because they required a network.
+
+    Reads the installer selection receipt (pendingItems plus itemStatuses
+    marked explicitly-deferred) so the component manager can pick up the
+    component deferrals that no other surface handles. Unknown/missing
+    receipt yields an empty tuple: the picker is best-effort by design.
+    """
+    receipt_path = INSTALLER_RECEIPT_PATH if path is None else path
+    if not receipt_path.is_file():
+        return ()
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ()
+    if not isinstance(receipt, dict):
+        return ()
+    deferred: set[str] = set()
+    pending = receipt.get("pendingItems")
+    if isinstance(pending, list):
+        deferred |= {item for item in pending if isinstance(item, str)}
+    item_statuses = receipt.get("itemStatuses")
+    if isinstance(item_statuses, list):
+        deferred |= {
+            entry.get("id")
+            for entry in item_statuses
+            if isinstance(entry, dict)
+            and entry.get("status") == "explicitly-deferred"
+            and isinstance(entry.get("id"), str)
+        }
+    if receipt.get("status") not in (None, "installed"):
+        return ()
+    return tuple(sorted(deferred))
+
+
 @dataclass(frozen=True)
 class Transaction:
     directory: Path
