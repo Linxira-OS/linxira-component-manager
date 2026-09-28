@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QVBoxLayout, QW
 
 
 APP_NAME = "Quick System Runtime Setup"
-APP_VERSION = "0.1.2"
+APP_VERSION = "0.1.3"
 HOMEPAGE_URL = "https://linxira-os.github.io/"
 REPOSITORY_URL = "https://github.com/Linxira-OS/linxira-component-manager"
 ISSUES_URL = f"{REPOSITORY_URL}/issues"
