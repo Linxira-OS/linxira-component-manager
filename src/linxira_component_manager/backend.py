@@ -2,11 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 from typing import Any, Callable
+
+
+def _euid() -> int:
+    """os.geteuid 不存在于非 POSIX 宿主(Windows CI); 视作非 root。"""
+    fallback = getattr(os, "geteuid", None)
+    return fallback() if callable(fallback) else 1
 
 
 class BackendError(RuntimeError):
@@ -195,6 +202,7 @@ def confirm_and_apply(
     pkexec: str = "pkexec",
     confirm_timeout: int = 30,
     progress: Callable[[str], None] | None = None,
+    authorization: str = "auto",
 ) -> ApplyResult:
     try:
         if progress is not None:
@@ -226,18 +234,29 @@ def confirm_and_apply(
                     False,
                 )
 
-        resolved_pkexec = shutil.which(pkexec)
-        if resolved_pkexec is None:
-            raise BackendError(f"authorization executable not found: {pkexec}")
-        if progress is not None:
-            progress("正在请求管理员授权并安装…")
-        output = _run([
-            resolved_pkexec,
+        if authorization not in {"auto", "pkexec", "root"}:
+            raise BackendError(f"unknown authorization mode: {authorization}")
+        if authorization == "root" and _euid() != 0:
+            raise BackendError("root authorization requested but not running as root")
+        privileged = (
+            _euid() != 0 if authorization == "auto" else authorization == "pkexec"
+        )
+        apply_command = [
             transaction.executable,
             "apply",
             "--confirmation",
             str(confirmation_path),
-        ])
+        ]
+        if privileged:
+            resolved_pkexec = shutil.which(pkexec)
+            if resolved_pkexec is None:
+                raise BackendError(f"authorization executable not found: {pkexec}")
+            apply_command = [resolved_pkexec] + apply_command
+        if progress is not None:
+            progress(
+                "正在以管理员身份安装…" if privileged else "正在以 root 安装…"
+            )
+        output = _run(apply_command)
         return ApplyResult(output, True)
     finally:
         discard_transaction(transaction)
