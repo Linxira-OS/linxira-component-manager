@@ -159,8 +159,11 @@ def command_install(
               "\n".join(f"plan: {item}" for item in targets))
         return 0
 
+    pending_items = transaction.plan.get("pendingItems", [])
     if not assume_yes:
         print(f"将安装 {len(targets)} 个包目标: {' '.join(targets)}")
+        if pending_items:
+            print(f"另有 {len(pending_items)} 项暂不可安装（通道待实现，将跳过）: {' '.join(pending_items)}")
         try:
             reply = input("继续? [y/N] ")
         except EOFError:
@@ -175,8 +178,15 @@ def command_install(
     except BackendError as error:
         print(f"执行失败: {error}", file=sys.stderr)
         return EXIT_APPLY
-    print(json.dumps({"applied": True, "targets": targets}, ensure_ascii=False) if as_json
-          else f"已提交 {len(targets)} 个包目标。")
+    pending_items = transaction.plan.get("pendingItems", [])
+    if as_json:
+        print(json.dumps({"applied": True, "targets": targets, "pending": pending_items},
+                         ensure_ascii=False))
+    else:
+        done = f"已安装 {len(targets)} 个包目标。"
+        if pending_items:
+            done += f" 另有 {len(pending_items)} 项通道待实现，本轮跳过: {' '.join(pending_items)}。"
+        print(done)
     return 0
 
 

@@ -59,7 +59,11 @@ def _apply(catalog_path: Path, model: SelectionModel) -> str:
     transaction = plan_selection(model.document(), catalog_path)
     targets = transaction.plan.get("directPackageTargets", [])
     result = confirm_and_apply(transaction, authorization="auto")
-    return f"已提交 {len(targets)} 个包目标: {' '.join(targets)} → {result.message.splitlines()[0]}"
+    pending = getattr(result, "pending", None) or transaction.plan.get("pendingItems", [])
+    base = f"已安装 {len(targets)} 个包目标: {' '.join(targets)}"
+    if pending:
+        base += f"；另有 {len(pending)} 项通道待实现跳过: {' '.join(pending)}"
+    return f"{base} → {result.message.splitlines()[0]}"
 
 def run(catalog_argument: Path | None) -> int:
     catalog_path = resolve_catalog(catalog_argument)
