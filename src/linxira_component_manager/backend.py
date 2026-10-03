@@ -150,7 +150,7 @@ def load_inventory(
     states: dict[str, str] = {}
     for leaf_id, value in leaves.items():
         state = value.get("state") if isinstance(value, dict) else None
-        if isinstance(leaf_id, str) and state in {"installed", "partial", "absent", "unknown"}:
+        if isinstance(leaf_id, str) and state in {"installed", "partial", "absent", "unknown", "pending"}:
             states[leaf_id] = state
         else:
             raise BackendError("backend inventory contains an invalid leaf state")
