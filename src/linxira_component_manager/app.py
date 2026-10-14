@@ -43,10 +43,12 @@ def main(argv: list[str] | None = None) -> int:
 
     from PySide6.QtWidgets import QApplication
 
+    from .theme import apply_theme
     from .ui import MainWindow
 
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
     application = QApplication(sys.argv[:1])
+    apply_theme(application)
     application.setApplicationName("Quick System Runtime Setup")
     application.setOrganizationName("Linxira OS")
     catalog = args.catalog or next(

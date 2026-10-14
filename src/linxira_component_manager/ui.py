@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtCore import QThread, Qt, Signal
-from PySide6.QtGui import QAction, QFont
+from PySide6.QtCore import QSize, QThread, Qt, Signal
+from PySide6.QtGui import QAction, QBrush, QColor, QFont, QPalette
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QFileDialog,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -37,6 +39,7 @@ from .backend import (
 )
 from .catalog import Bundle, Catalog, CatalogError, Leaf, load_catalog
 from .selection import SelectionError, SelectionModel
+from .theme import ACCENT_STRONG, SUCCESS, WARNING
 
 
 NODE_ID = Qt.ItemDataRole.UserRole
@@ -84,21 +87,25 @@ class PlanDialog(QDialog):
         self.setWindowTitle("Confirm component plan")
         self.resize(760, 620)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 18, 22, 18)
+        layout.setSpacing(10)
 
         targets = plan.get("directPackageTargets", [])
         pending = plan.get("pendingItems", [])
         unsupported = plan.get("unsupportedItems", [])
         heading = QLabel(f"Ready package targets: {len(targets)}")
-        heading.setFont(QFont(heading.font().family(), 13, QFont.Weight.DemiBold))
+        heading.setObjectName("dialogTitle")
         layout.addWidget(heading)
         self.pending_label = QLabel(
             "Pending items (not applied): " + (", ".join(pending) if pending else "None")
         )
         self.pending_label.setWordWrap(True)
+        self.pending_label.setObjectName("badgePill" if pending else "heroSubtitle")
         self.unsupported_label = QLabel(
             "Unsupported items (not applied): " + (", ".join(unsupported) if unsupported else "None")
         )
         self.unsupported_label.setWordWrap(True)
+        self.unsupported_label.setObjectName("badgePill" if unsupported else "heroSubtitle")
         layout.addWidget(self.pending_label)
         layout.addWidget(self.unsupported_label)
         if not targets:
@@ -111,16 +118,20 @@ class PlanDialog(QDialog):
                 "Review the complete immutable backend plan. Confirmation will request administrator authorization."
             )
         notice.setWordWrap(True)
+        notice.setObjectName("heroSubtitle")
         layout.addWidget(notice)
 
         self.document = QPlainTextEdit(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
+        self.document.setObjectName("codeView")
         self.document.setReadOnly(True)
         self.document.setAccessibleName("Complete backend transaction plan")
         layout.addWidget(self.document, 1)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok
         )
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Confirm and apply")
+        ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        ok_button.setText("Confirm and apply")
+        ok_button.setObjectName("primaryButton")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -152,27 +163,56 @@ class MainWindow(QMainWindow):
         about_action.triggered.connect(lambda: show_about(self))
         self.menuBar().addMenu("Help").addAction(about_action)
 
+        # 顶部 hero 卡: 标题 + 说明（原先页面没有任何视觉起点, 只有窗口标题）
+        hero = QFrame()
+        hero.setObjectName("heroCard")
+        hero_layout = QVBoxLayout(hero)
+        hero_layout.setContentsMargins(20, 16, 20, 16)
+        hero_layout.setSpacing(4)
+        heading = QLabel("快速配置系统运行时")
+        heading.setObjectName("heroTitle")
+        subtitle = QLabel(
+            "展开能力包选择运行时与系统组件。勾选表示请求安装，状态列显示实际安装情况。"
+        )
+        subtitle.setObjectName("heroSubtitle")
+        subtitle.setWordWrap(True)
+        hero_layout.addWidget(heading)
+        hero_layout.addWidget(subtitle)
+
         self.tree = QTreeWidget()
-        self.tree.setHeaderLabels(["Bundle / component", "Role", "Policy"])
-        self.tree.setColumnWidth(0, 430)
+        self.tree.setObjectName("componentTree")
+        self.tree.setHeaderLabels(["Bundle / component", "Role", "Kind", "Status"])
+        self.tree.setColumnWidth(0, 380)
+        self.tree.setColumnWidth(1, 90)
+        self.tree.setColumnWidth(2, 110)
+        self.tree.header().setStretchLastSection(True)
+        self.tree.setAlternatingRowColors(False)
+        self.tree.setUniformRowHeights(True)
+        self.tree.setIndentation(18)
+        self.tree.setAnimated(True)
+        self.tree.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tree.setAccessibleName("Expandable component selection tree")
         self.tree.itemChanged.connect(self._item_changed)
         self.tree.currentItemChanged.connect(self._current_changed)
 
         self.details = QPlainTextEdit()
+        self.details.setObjectName("detailView")
         self.details.setReadOnly(True)
         self.details.setAccessibleName("Selected node details")
         self.preview = QPlainTextEdit()
+        self.preview.setObjectName("codeView")
         self.preview.setReadOnly(True)
         self.preview.setAccessibleName("Selection JSON preview")
         fixed = QFont("monospace")
         fixed.setStyleHint(QFont.StyleHint.Monospace)
         self.preview.setFont(fixed)
         self.plan_preview = QPlainTextEdit()
+        self.plan_preview.setObjectName("codeView")
         self.plan_preview.setReadOnly(True)
         self.plan_preview.setFont(fixed)
 
         tabs = QTabWidget()
+        tabs.setObjectName("cardTabs")
         tabs.addTab(self.details, "Details")
         tabs.addTab(self.preview, "Selection JSON")
         tabs.addTab(self.plan_preview, "Backend plan")
@@ -182,16 +222,22 @@ class MainWindow(QMainWindow):
         splitter.setSizes([650, 530])
 
         self.summary = QLabel("Open a Catalog v3 JSON file to begin.")
+        self.summary.setObjectName("summaryLabel")
         self.summary.setWordWrap(True)
         save_button = QPushButton("Save selection JSON")
         save_button.clicked.connect(self.save_selection)
         self.plan_button = QPushButton("Plan with linxira-components")
+        self.plan_button.setObjectName("primaryButton")
         self.plan_button.clicked.connect(self.plan_backend)
         buttons = QHBoxLayout()
+        buttons.setSpacing(12)
         buttons.addWidget(self.summary, 1)
         buttons.addWidget(save_button)
         buttons.addWidget(self.plan_button)
         layout = QVBoxLayout()
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
+        layout.addWidget(hero)
         layout.addWidget(splitter, 1)
         layout.addLayout(buttons)
         container = QWidget()
@@ -282,13 +328,23 @@ class MainWindow(QMainWindow):
     ) -> None:
         assert self.catalog is not None
         bundle = self.catalog.bundles[bundle_id]
-        item = QTreeWidgetItem(parent or self.tree, [bundle.name, role, self._policy_text(bundle)])
+        item = QTreeWidgetItem(
+            parent or self.tree, [bundle.name, role, self._policy_text(bundle), ""]
+        )
         item.setData(0, NODE_ID, bundle_id)
         item.setData(0, NODE_PATH, list(path))
         item.setData(0, NODE_KIND, "bundle")
         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
         item.setCheckState(0, Qt.CheckState.Unchecked)
         item.setToolTip(0, bundle.description)
+        # 视觉层(2026-10-14): 行高 + 包名加粗 + Role/Policy 弱化（第 4 列状态由 _refresh 填）
+        item.setSizeHint(0, QSize(0, 34))
+        bundle_font = item.font(0)
+        bundle_font.setBold(True)
+        item.setFont(0, bundle_font)
+        muted = self.palette().color(QPalette.ColorRole.PlaceholderText)
+        for column in (1, 2):
+            item.setForeground(column, QBrush(muted))
         for child in bundle.children:
             child_path = path + (child.id,)
             if child.id in self.catalog.bundles:
@@ -306,13 +362,17 @@ class MainWindow(QMainWindow):
         label = leaf.name
         if leaf.offline_label:
             label += f" · {leaf.offline_label}"
-        item = QTreeWidgetItem(parent, [label, role, leaf.kind])
+        item = QTreeWidgetItem(parent, [label, role, leaf.kind, ""])
         item.setData(0, NODE_ID, leaf.id)
         item.setData(0, NODE_PATH, list(path))
         item.setData(0, NODE_KIND, "leaf")
         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
         item.setCheckState(0, Qt.CheckState.Unchecked)
         item.setToolTip(0, leaf.description)
+        item.setSizeHint(0, QSize(0, 34))
+        muted = self.palette().color(QPalette.ColorRole.PlaceholderText)
+        for column in (1, 2):
+            item.setForeground(column, QBrush(muted))
         if not leaf.available:
             item.setDisabled(True)
             item.setToolTip(0, leaf.unavailable_reason or "Unavailable")
@@ -367,6 +427,12 @@ class MainWindow(QMainWindow):
                 state = 0 if not count else 2 if count == len(leaves) else 1
                 states = (Qt.CheckState.Unchecked, Qt.CheckState.PartiallyChecked, Qt.CheckState.Checked)
                 item.setCheckState(0, states[state])
+                item.setText(3, f"{count}/{len(leaves)}")
+                item.setForeground(
+                    3,
+                    QBrush(QColor(ACCENT_STRONG) if count
+                           else self.palette().color(QPalette.ColorRole.PlaceholderText)),
+                )
             else:
                 installed_state = self.installed_states.get(node_id)
                 if installed_state == "installed":
@@ -384,6 +450,28 @@ class MainWindow(QMainWindow):
                     item.setToolTip(0, f"{leaf.description}\nInstalled package cohort; removal is not supported.")
                 elif installed_state == "partial":
                     item.setToolTip(0, f"{leaf.description}\nPartially installed; apply will install the missing package targets.")
+                # 视觉层(2026-10-14): 第 4 列 = 观测态徽标（勾选框仍是请求态）
+                if installed_state == "installed":
+                    status, accent = "已安装", SUCCESS
+                elif installed_state == "partial":
+                    status, accent = "部分安装", WARNING
+                elif not leaf.available:
+                    status, accent = "不可用", None
+                elif required:
+                    status, accent = "必需", ACCENT_STRONG
+                elif node_id in selected:
+                    status, accent = "待安装", ACCENT_STRONG
+                else:
+                    status, accent = "可选", None
+                item.setText(3, status)
+                item.setForeground(
+                    3,
+                    QBrush(QColor(accent) if accent
+                           else self.palette().color(QPalette.ColorRole.PlaceholderText)),
+                )
+                leaf_font = item.font(0)
+                leaf_font.setBold(accent in (SUCCESS, WARNING) or required)
+                item.setFont(0, leaf_font)
         self.tree.blockSignals(False)
         document = self.selection.document()
         self.preview.setPlainText(json.dumps(document, ensure_ascii=False, indent=2, sort_keys=True))

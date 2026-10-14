@@ -15,12 +15,17 @@
   5. `directPackageTargets` 非空时 `pkexec linxira-components apply --catalog ... --confirmation ...`。
 - **提权只走 `linxira-components` + polkit**;本仓不得重新实现提权,子进程一律固定参数向量 + `shell=False`。
 - 不负责:catalog 数据(归 `linxira-catalog`)、事务后端(归 `linxira-components`)。
+- **视觉基准**(2026-10-14):UI 采用与 `linxira-welcome` / `linxira-package-center` 同源的 Linxira
+  视觉基准(Fusion + 深色跟随 + 品牌青 `#20b8a6` / 深青 `#147f78`), 集中在 `theme.py`
+  (`apply_theme()`), 由 `app.py` 在 `QApplication` 之后调用。树的**第 4 列是观测态徽标**
+  (已安装/部分安装/必需/待安装/可选/不可用), **勾选框仍是请求态** —— 二者不得合并。
+  改配色/间距请与 `linxira-welcome`、`linxira-package-center` 的内联主题同步。
 
 ## 目录布局
 
 ```
 src/linxira_component_manager/  app.py / ui.py / catalog.py / selection.py
-                                backend.py / cli.py / tui.py / about.py
+                                backend.py / cli.py / tui.py / about.py / theme.py
 data/                           org.linxira.ComponentManager.desktop / .metainfo.xml
 examples/catalog-v3.example.json
 tests/                          test_ui / test_catalog / test_selection / test_backend / test_cli
@@ -46,7 +51,7 @@ CI(`.github/workflows/ci.yml`,Python 3.11)另装 `libegl1`,并以 `QT_QPA_PLATFO
 
 ## 版本与发布
 
-- 版本唯一来源是根目录 `VERSION`(当前 0.1.5);`pyproject.toml` version 必须同步(CI 会拒)。
+- 版本唯一来源是根目录 `VERSION`(当前 0.1.6);`pyproject.toml` version 必须同步(CI 会拒)。
 - CLI 入口:`linxira-component-manager = linxira_component_manager.app:main`(依赖 `PySide6>=6.7`,Python ≥ 3.11)。
 - 提交 `VERSION` 变更即触发 `.github/workflows/release.yml` 走全自动发布链。**禁止手工 bump**。
 
