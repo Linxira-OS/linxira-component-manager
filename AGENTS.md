@@ -51,7 +51,7 @@ CI(`.github/workflows/ci.yml`,Python 3.11)另装 `libegl1`,并以 `QT_QPA_PLATFO
 
 ## 版本与发布
 
-- 版本唯一来源是根目录 `VERSION`(当前 0.1.6);`pyproject.toml` version 必须同步(CI 会拒)。
+- 版本唯一来源是根目录 `VERSION`(当前 0.1.7);`pyproject.toml` version 必须同步(CI 会拒)。
 - CLI 入口:`linxira-component-manager = linxira_component_manager.app:main`(依赖 `PySide6>=6.7`,Python ≥ 3.11)。
 - 提交 `VERSION` 变更即触发 `.github/workflows/release.yml` 走全自动发布链。**禁止手工 bump**。
 

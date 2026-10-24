@@ -383,6 +383,31 @@ class MainWindow(QMainWindow):
             return f"bounded (max {bundle.max_selected})"
         return bundle.policy
 
+    def apply_preselect(self, leaf_ids) -> None:
+        """预选叶子（welcome 的终端页入口）。
+
+        走与点击同一条 `_item_changed` 路径：勾选框仍是请求态，已安装/必需的
+        叶子被 disabled，不会被强改。未知 id 静默忽略（catalog 版本差异）。
+        """
+        wanted = set(leaf_ids)
+        if not wanted or self.catalog is None:
+            return
+        for item in self._iter_items():
+            node_id = item.data(0, NODE_ID)
+            if item.data(0, NODE_KIND) == "bundle" or node_id not in wanted:
+                continue
+            if item.isDisabled():
+                wanted.discard(node_id)
+                continue
+            item.setCheckState(0, Qt.CheckState.Checked)
+            self._item_changed(item, 0)
+            wanted.discard(node_id)
+        if wanted:
+            self.statusBar().showMessage(
+                f"预选已忽略（不在目录或不可选）: {', '.join(sorted(wanted))}", 8000
+            )
+        self._refresh()
+
     def _item_changed(self, item: QTreeWidgetItem, column: int) -> None:
         if column != 0 or self.selection is None:
             return

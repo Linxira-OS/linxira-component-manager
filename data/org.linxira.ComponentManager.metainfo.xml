@@ -15,6 +15,6 @@
   <url type="vcs-browser">https://github.com/Linxira-OS/linxira-component-manager</url>
   <url type="bugtracker">https://github.com/Linxira-OS/linxira-component-manager/issues</url>
   <url type="help">https://linxira-os.github.io/linxira-wiki/</url>
-  <releases><release version="0.1.6" date="2026-10-14" /><release version="0.1.0" date="2026-07-26" /></releases>
+  <releases><release version="0.1.7" date="2026-10-24" /><release version="0.1.6" date="2026-10-14" /><release version="0.1.0" date="2026-07-26" /></releases>
   <content_rating type="oars-1.1" />
 </component>

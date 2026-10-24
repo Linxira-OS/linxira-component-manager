@@ -14,6 +14,14 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     )
     parser.add_argument("--catalog", type=Path, default=None, help="Catalog v3 JSON file")
     parser.add_argument("--tui", action="store_true", help="终端 UI（curses）")
+    parser.add_argument(
+        "--select",
+        action="append",
+        default=[],
+        dest="select",
+        metavar="ID",
+        help="在图形界面里预选叶子节点（可重复；welcome 的终端页用）",
+    )
     commands = parser.add_subparsers(dest="command")
     listing = commands.add_parser("list", help="列出可安装项（agent 友好，--json）")
     listing.add_argument("--json", action="store_true")
@@ -55,5 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         (path for path in DEFAULT_CATALOGS if path.is_file()), None
     )
     window = MainWindow(catalog)
+    if args.select:
+        window.apply_preselect(args.select)
     window.show()
     return application.exec()
